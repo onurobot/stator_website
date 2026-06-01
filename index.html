@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stator — AI FinOps & Cost Control Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06090F;
+    --bg-2:#0A0F18;
+    --surface:#0E1623;
+    --surface-2:#121C2C;
+    --line:rgba(120,150,180,.12);
+    --line-strong:rgba(120,150,180,.22);
+    --ink:#EAF1F7;
+    --ink-dim:#9DACBE;
+    --ink-faint:#62718A;
+    --copper:#E08648;
+    --copper-hi:#F4AE76;
+    --copper-deep:#B85F2C;
+    --cyan:#3FE0CF;
+    --cyan-hi:#7CF3E6;
+    --blue:#4C8CFF;
+    --display:"Bricolage Grotesque",serif;
+    --body:"Hanken Grotesk",sans-serif;
+    --mono:"JetBrains Mono",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:17px;
+    line-height:1.6;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* engineering grid + grain backdrop */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(120,150,180,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.035) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 35%,transparent 80%);
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background:radial-gradient(900px 600px at 78% -5%,rgba(63,224,207,.10),transparent 60%),
+               radial-gradient(800px 600px at 10% 8%,rgba(224,134,72,.10),transparent 60%);
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:0 28px;position:relative;z-index:2}
+  section{position:relative;z-index:2}
+  a{color:inherit;text-decoration:none}
+
+  .kicker{
+    font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--cyan);display:inline-flex;align-items:center;gap:10px;
+  }
+  .kicker::before{content:"";width:26px;height:1px;background:linear-gradient(90deg,var(--cyan),transparent)}
+  .kicker.copper{color:var(--copper-hi)}
+  .kicker.copper::before{background:linear-gradient(90deg,var(--copper),transparent)}
+
+  h1,h2,h3{font-family:var(--display);font-weight:800;line-height:1.02;letter-spacing:-.02em}
+  .display{font-size:clamp(42px,7vw,86px)}
+  .display .accent{
+    background:linear-gradient(120deg,var(--copper-hi),var(--copper) 40%,var(--cyan) 95%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  h2{font-size:clamp(30px,4.4vw,52px)}
+  .lead{color:var(--ink-dim);font-size:clamp(17px,1.7vw,20px);max-width:60ch}
+
+  /* NAV */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 28px;backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(6,9,15,.82),rgba(6,9,15,.35));
+    border-bottom:1px solid var(--line);
+    max-width:1200px;margin:0 auto;left:50%;transform:translateX(-50%);width:100%;
+  }
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.02em}
+  .brand .mark{width:32px;height:32px;animation:spin 12s linear infinite}
+  .navlinks{display:flex;gap:30px;font-size:14px;color:var(--ink-dim)}
+  .navlinks a{transition:color .2s}
+  .navlinks a:hover{color:var(--ink)}
+  .nav-cta{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:9px 18px;border:1px solid var(--line-strong);border-radius:100px;color:var(--ink);transition:.25s}
+  .nav-cta:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 24px rgba(63,224,207,.25)}
+  @media(max-width:820px){.navlinks{display:none}}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:14px;
+    letter-spacing:.03em;padding:15px 26px;border-radius:100px;transition:.28s;cursor:pointer;border:1px solid transparent;
+  }
+  .btn-primary{background:linear-gradient(120deg,var(--copper),var(--copper-deep));color:#1a0e06;font-weight:700;box-shadow:0 10px 40px rgba(224,134,72,.28)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 50px rgba(224,134,72,.42)}
+  .btn-ghost{border-color:var(--line-strong);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+  .btn .arrow{transition:transform .28s}
+  .btn:hover .arrow{transform:translateX(4px)}
+
+  /* HERO */
+  .hero{padding:160px 0 90px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
+  @media(max-width:940px){.hero{grid-template-columns:1fr;padding-top:130px}}
+  .hero-copy{opacity:0;transform:translateY(24px);animation:rise .9s .15s cubic-bezier(.2,.7,.2,1) forwards}
+  .hero h1{margin:22px 0 24px}
+  .hero-cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
+  .hero-trust{margin-top:30px;font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.04em;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .hero-trust .dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+
+  /* STATOR ENGINE VISUAL */
+  .engine{position:relative;width:100%;aspect-ratio:1;max-width:480px;margin:0 auto;display:grid;place-items:center;
+    opacity:0;animation:fadeScale 1.1s .35s cubic-bezier(.2,.7,.2,1) forwards}
+  .engine .field{
+    position:absolute;inset:8%;border-radius:50%;
+    background:conic-gradient(from 0deg,transparent 0deg,rgba(63,224,207,.55) 30deg,transparent 90deg,transparent 180deg,rgba(224,134,72,.5) 210deg,transparent 270deg,transparent 360deg);
+    filter:blur(26px);animation:spin 6s linear infinite;
+  }
+  .engine .field-2{
+    position:absolute;inset:20%;border-radius:50%;
+    background:conic-gradient(from 120deg,transparent,rgba(76,140,255,.4) 60deg,transparent 140deg);
+    filter:blur(20px);animation:spin 4.2s linear infinite reverse;mix-blend-mode:screen;
+  }
+  .engine svg{position:relative;z-index:3;width:100%;height:100%;overflow:visible}
+  .rotor{transform-origin:200px 200px;animation:spin 7s linear infinite}
+  .flux{transform-origin:200px 200px;animation:spin 9s linear infinite}
+  .coil{transform-origin:center;}
+  .ph-a{animation:energize 1.8s linear infinite}
+  .ph-b{animation:energize 1.8s linear infinite;animation-delay:-.6s}
+  .ph-c{animation:energize 1.8s linear infinite;animation-delay:-1.2s}
+  .spark{animation:dash 1.8s linear infinite}
+
+  /* data particles flowing in */
+  .ingest{position:absolute;z-index:1;font-family:var(--mono);font-size:11px;color:var(--ink-faint);pointer-events:none}
+
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes energize{0%,100%{opacity:.22}45%{opacity:1;filter:drop-shadow(0 0 6px var(--copper-hi))}}
+  @keyframes dash{to{stroke-dashoffset:-60}}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @keyframes fadeScale{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+
+  /* generic reveal */
+  .reveal{opacity:0;transform:translateY(32px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
+
+  .section-pad{padding:96px 0}
+  .head-block{max-width:760px;margin-bottom:54px}
+  .head-block h2{margin:18px 0}
+
+  /* PROBLEM orbit */
+  .problem{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  @media(max-width:880px){.problem{grid-template-columns:1fr}}
+  .orbit{position:relative;width:100%;aspect-ratio:1;max-width:420px;margin:0 auto}
+  .orbit .core{position:absolute;inset:38%;border-radius:50%;border:1px dashed rgba(224,134,72,.5);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--copper-hi);text-align:center;animation:spin 30s linear infinite reverse}
+  .orbit .ringline{position:absolute;border:1px solid var(--line);border-radius:50%}
+  .orbit .r1{inset:8%}.orbit .r2{inset:22%}
+  .chip{position:absolute;top:50%;left:50%;font-family:var(--mono);font-size:11px;padding:6px 11px;border-radius:100px;background:var(--surface);border:1px solid var(--line-strong);white-space:nowrap;color:var(--ink-dim);box-shadow:0 6px 20px rgba(0,0,0,.5)}
+  .o1{animation:orbit1 16s linear infinite}.o2{animation:orbit2 22s linear infinite}.o3{animation:orbit3 19s linear infinite}.o4{animation:orbit4 26s linear infinite}.o5{animation:orbit2 20s linear infinite reverse}
+  @keyframes orbit1{from{transform:translate(-50%,-50%) rotate(0) translateX(150px) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg) translateX(150px) rotate(-360deg)}}
+  @keyframes orbit2{from{transform:translate(-50%,-50%) rotate(72deg) translateX(180px) rotate(-72deg)}to{transform:translate(-50%,-50%) rotate(432deg) translateX(180px) rotate(-432deg)}}
+  @keyframes orbit3{from{transform:translate(-50%,-50%) rotate(144deg) translateX(120px) rotate(-144deg)}to{transform:translate(-50%,-50%) rotate(504deg) translateX(120px) rotate(-504deg)}}
+  @keyframes orbit4{from{transform:translate(-50%,-50%) rotate(216deg) translateX(165px) rotate(-216deg)}to{transform:translate(-50%,-50%) rotate(576deg) translateX(165px) rotate(-576deg)}}
+  .problem-list{list-style:none;display:grid;gap:18px;margin-top:8px}
+  .problem-list li{display:flex;gap:14px;align-items:flex-start;color:var(--ink-dim)}
+  .problem-list .x{flex:none;width:22px;height:22px;border-radius:6px;background:rgba(224,134,72,.12);color:var(--copper-hi);display:grid;place-items:center;font-family:var(--mono);font-size:13px;margin-top:2px}
+
+  /* MEANING band */
+  .meaning{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(14,22,35,.5),transparent)}
+  .meaning .wrap{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+  @media(max-width:880px){.meaning .wrap{grid-template-columns:1fr}}
+  .meaning .quote{font-family:var(--display);font-weight:700;font-size:clamp(26px,3.2vw,38px);line-height:1.15;letter-spacing:-.02em}
+  .meaning .quote em{font-style:normal;color:var(--cyan)}
+  .meaning .small{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.18em;text-transform:uppercase;margin-top:26px}
+
+  /* FEATURES */
+  .grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:760px){.grid4{grid-template-columns:1fr}}
+  .card{
+    position:relative;background:linear-gradient(180deg,var(--surface),var(--bg-2));
+    border:1px solid var(--line);border-radius:18px;padding:30px;overflow:hidden;transition:.35s;
+  }
+  .card:hover{border-color:var(--line-strong);transform:translateY(-4px)}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;transition:.35s}
+  .card:hover::before{opacity:.7}
+  .card .ico{width:50px;height:50px;margin-bottom:22px}
+  .card h3{font-size:21px;margin-bottom:10px}
+  .card p{color:var(--ink-dim);font-size:15.5px}
+  .card .tag{position:absolute;top:24px;right:24px;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+
+  /* DASHBOARD */
+  .dash{
+    border:1px solid var(--line-strong);border-radius:20px;overflow:hidden;
+    background:linear-gradient(180deg,var(--surface),var(--bg));box-shadow:0 40px 100px rgba(0,0,0,.6);
+  }
+  .dash-top{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .dash-top .tdot{width:11px;height:11px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line-strong)}
+  .dash-top .turl{margin-left:14px;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+  .dash-top .live{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--cyan);display:flex;align-items:center;gap:7px}
+  .dash-top .live .blip{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:blink 1.4s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .dash-body{display:grid;grid-template-columns:1.4fr 1fr;gap:1px;background:var(--line)}
+  @media(max-width:760px){.dash-body{grid-template-columns:1fr}}
+  .panel{background:var(--surface);padding:24px}
+  .panel .plabel{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:18px}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px}
+  .kpi .v{font-family:var(--display);font-weight:800;font-size:26px}
+  .kpi .v.cy{color:var(--cyan)}.kpi .v.co{color:var(--copper-hi)}
+  .kpi .l{font-size:12px;color:var(--ink-faint);font-family:var(--mono)}
+  .bars{display:flex;align-items:flex-end;gap:12px;height:150px;padding-top:8px;border-top:1px solid var(--line)}
+  .bar{flex:1;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--cyan),rgba(63,224,207,.15));height:0;transition:height 1.1s cubic-bezier(.2,.7,.2,1)}
+  .bar.co{background:linear-gradient(180deg,var(--copper-hi),rgba(224,134,72,.12))}
+  .bar-labels{display:flex;gap:12px;margin-top:8px}
+  .bar-labels span{flex:1;text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+  /* donut */
+  .donut-wrap{display:flex;align-items:center;gap:22px}
+  .donut{width:120px;height:120px;flex:none;transform:rotate(-90deg)}
+  .legend{display:grid;gap:10px;font-size:13px;width:100%}
+  .legend .row{display:flex;align-items:center;gap:9px;color:var(--ink-dim)}
+  .legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+  .legend .amt{margin-left:auto;font-family:var(--mono);color:var(--ink)}
+  .alert{margin-top:22px;border:1px solid rgba(224,134,72,.3);background:rgba(224,134,72,.07);border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+  .alert .b{flex:none;width:26px;height:26px;border-radius:7px;background:rgba(224,134,72,.18);display:grid;place-items:center;color:var(--copper-hi);font-family:var(--mono);font-size:13px}
+  .alert .t{font-size:13.5px;color:var(--ink-dim)}
+  .alert .t b{color:var(--ink);font-weight:600}
+  .suggest{margin-top:14px;border:1px solid rgba(63,224,207,.28);background:rgba(63,224,207,.06);border-radius:12px;padding:14px 16px;font-size:13.5px;color:var(--ink-dim)}
+  .suggest b{color:var(--cyan)}
+
+  /* HOW / 3-phase */
+  .phases{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:ph}
+  @media(max-width:760px){.phases{grid-template-columns:1fr}}
+  .phase{position:relative;padding:30px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,var(--surface),var(--bg-2))}
+  .phase .num{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.2em}
+  .phase h3{font-size:22px;margin:16px 0 10px}
+  .phase p{color:var(--ink-dim);font-size:15px}
+  .phase .wire{position:absolute;top:50%;right:-10px;width:20px;height:2px;background:linear-gradient(90deg,var(--cyan),transparent);z-index:3}
+  @media(max-width:760px){.phase .wire{display:none}}
+
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--bg-2);padding:34px 26px;text-align:center}
+  .stat .n{font-family:var(--display);font-weight:800;font-size:clamp(34px,4vw,46px);letter-spacing:-.03em}
+  .stat .n .accent{background:linear-gradient(120deg,var(--copper-hi),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .c{font-size:13px;color:var(--ink-dim);margin-top:6px}
+
+  /* CTA */
+  .cta-band{position:relative;border:1px solid var(--line-strong);border-radius:26px;padding:70px 40px;text-align:center;overflow:hidden;background:linear-gradient(180deg,var(--surface),var(--bg))}
+  .cta-band::before{content:"";position:absolute;inset:-50% 30%;background:conic-gradient(from 0deg,transparent,rgba(63,224,207,.18),transparent 50%,rgba(224,134,72,.18),transparent);animation:spin 14s linear infinite;filter:blur(40px)}
+  .cta-band .inner{position:relative;z-index:2}
+  .cta-band h2{margin-bottom:18px}
+  .cta-band .lead{margin:0 auto 30px}
+
+  /* FOOTER */
+  footer{border-top:1px solid var(--line);margin-top:90px;padding:54px 0 40px}
+  .foot{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
+  .foot .cols{display:flex;gap:64px;flex-wrap:wrap}
+  .foot h4{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px}
+  .foot a{display:block;color:var(--ink-dim);font-size:14px;margin-bottom:10px;transition:color .2s}
+  .foot a:hover{color:var(--ink)}
+  .foot-bottom{margin-top:46px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--ink-faint)}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- shared stator mark -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="statormark" viewBox="0 0 32 32">
+    <circle cx="16" cy="16" r="13" fill="none" stroke="var(--copper)" stroke-width="2"/>
+    <circle cx="16" cy="16" r="5" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+    <g stroke="var(--cyan)" stroke-width="2" stroke-linecap="round">
+      <line x1="16" y1="3" x2="16" y2="8"/><line x1="16" y1="24" x2="16" y2="29"/>
+      <line x1="3" y1="16" x2="8" y2="16"/><line x1="24" y1="16" x2="29" y2="16"/>
+    </g>
+  </symbol>
+</svg>
+
+<nav>
+  <a class="brand" href="#top">
+    <svg class="mark"><use href="#statormark"/></svg> Stator
+  </a>
+  <div class="navlinks">
+    <a href="#problem">The Problem</a>
+    <a href="#meaning">Why Stator</a>
+    <a href="#features">Platform</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#how">How it works</a>
+  </div>
+  <a class="nav-cta" href="#cta">Request a demo</a>
+</nav>
+
+<div class="wrap" id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="kicker">AI FinOps · The Cost-Control Layer</span>
+      <h1 class="display">Turn AI spend<br>chaos into<br><span class="accent">controlled power.</span></h1>
+      <p class="lead">Stator is the centralized control layer for every AI tool your team runs. Track expenditure, tokens, and credits on a single screen — then convert that visibility into savings, smarter alternatives, and project-level clarity.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#cta">Request a demo <span class="arrow">→</span></a>
+        <a class="btn btn-ghost" href="#dashboard">See the dashboard</a>
+      </div>
+      <div class="hero-trust">
+        <span class="dot"></span> Built for studios, agencies & solo producers
+        <span class="dot"></span> Connects every AI subscription
+      </div>
+    </div>
+
+    <!-- STATOR ENGINE -->
+    <div class="engine" aria-hidden="true">
+      <div class="field"></div>
+      <div class="field-2"></div>
+      <svg viewBox="0 0 400 400">
+        <defs>
+          <radialGradient id="rotorG" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#1a2738"/>
+            <stop offset="70%" stop-color="#0e1623"/>
+            <stop offset="100%" stop-color="#1a2738"/>
+          </radialGradient>
+          <linearGradient id="poleG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--cyan-hi)"/>
+            <stop offset="100%" stop-color="var(--blue)"/>
+          </linearGradient>
+        </defs>
+
+        <!-- housing -->
+        <circle cx="200" cy="200" r="186" fill="none" stroke="var(--line-strong)" stroke-width="1"/>
+        <circle cx="200" cy="200" r="172" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 6"/>
+        <circle cx="200" cy="200" r="150" fill="none" stroke="var(--copper-deep)" stroke-width="2" opacity=".6"/>
+
+        <!-- 12 copper coil windings, 3-phase color groups -->
+        <g id="coils"></g>
+
+        <!-- rotating flux arcs between stator and rotor -->
+        <g class="flux" fill="none" stroke="var(--cyan)" stroke-width="2" opacity=".8">
+          <path class="spark" d="M200 110 A90 90 0 0 1 290 200" stroke-dasharray="6 14"/>
+          <path class="spark" d="M200 290 A90 90 0 0 1 110 200" stroke-dasharray="6 14" style="animation-delay:-.9s"/>
+        </g>
+
+        <!-- rotor -->
+        <g class="rotor">
+          <circle cx="200" cy="200" r="84" fill="url(#rotorG)" stroke="var(--line-strong)" stroke-width="1.5"/>
+          <circle cx="200" cy="200" r="84" fill="none" stroke="var(--cyan)" stroke-width="1" opacity=".25"/>
+          <!-- 4 poles -->
+          <g fill="url(#poleG)">
+            <path d="M200 128 q22 22 0 56 q-22-34 0-56Z"/>
+            <path d="M200 272 q22-22 0-56 q-22 34 0 56Z"/>
+            <path d="M128 200 q22-22 56 0 q-34 22 -56 0Z"/>
+            <path d="M272 200 q-22-22 -56 0 q34 22 56 0Z"/>
+          </g>
+          <circle cx="200" cy="200" r="14" fill="var(--surface-2)" stroke="var(--copper)" stroke-width="2"/>
+        </g>
+      </svg>
+      <!-- ingest labels -->
+      <div class="ingest" style="top:6%;left:0">$ tokens →</div>
+      <div class="ingest" style="bottom:10%;right:0">credits →</div>
+      <div class="ingest" style="bottom:30%;left:-4%">seats →</div>
+    </div>
+  </section>
+</div>
+
+<!-- PROBLEM -->
+<section class="section-pad" id="problem">
+  <div class="wrap problem">
+    <div class="reveal">
+      <span class="kicker copper">The Problem</span>
+      <h2 style="margin:18px 0 18px;">AI tools multiply.<br>So do invisible costs.</h2>
+      <p class="lead">Creative teams now run a dozen AI subscriptions across image, video, audio, and copy — each with its own credits, tokens, and billing cycle. The spend spins out of control because nobody can see it in one place.</p>
+      <ul class="problem-list" style="margin-top:26px">
+        <li><span class="x">✕</span><span>Token and credit burn scattered across a dozen dashboards with no single source of truth.</span></li>
+        <li><span class="x">✕</span><span>Idle subscriptions and unused seats quietly draining budget month after month.</span></li>
+        <li><span class="x">✕</span><span>No way to attribute AI cost to the project, client, or campaign that actually spent it.</span></li>
+        <li><span class="x">✕</span><span>Paying premium prices for tasks a cheaper, better-fit tool could handle.</span></li>
+      </ul>
+    </div>
+    <div class="reveal d2 orbit" aria-hidden="true">
+      <div class="ringline r1"></div>
+      <div class="ringline r2"></div>
+      <div class="core">UNCONTROLLED<br>SPEND</div>
+      <div class="chip o1">Image gen · $/mo</div>
+      <div class="chip o2">Video · 4.2k credits</div>
+      <div class="chip o3">LLM · 1.1M tokens</div>
+      <div class="chip o4">Voice · idle</div>
+      <div class="chip o5">Upscale · seat ×7</div>
+    </div>
+  </div>
+</section>
+
+<!-- MEANING -->
+<section class="meaning section-pad" id="meaning">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="kicker">Why we're called Stator</span>
+      <p class="quote" style="margin-top:22px">In an electric motor, the <em>stator</em> is the part that never moves — a fixed ring of copper windings that captures wild electromagnetic energy and channels it into precise, usable motion.</p>
+      <p class="small">The still frame that directs the storm.</p>
+    </div>
+    <div class="reveal d2">
+      <p class="lead" style="font-size:19px;color:var(--ink)">That is exactly what we do for AI.</p>
+      <p class="lead" style="margin-top:16px">Your stack of AI tools is the rotor — fast, powerful, and spinning out of control. Stator is the stationary control layer wrapped around it, converting unpredictable spend into directed, measurable output. The energy stays; the chaos doesn't.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section-pad" id="features">
+  <div class="wrap">
+    <div class="head-block reveal">
+      <span class="kicker">The Platform</span>
+      <h2>One control layer.<br>Total command of AI cost.</h2>
+      <p class="lead">Everything you need to see, optimize, and attribute AI spend — driven by intelligent data analytics.</p>
+    </div>
+    <div class="grid4">
+      <div class="card reveal d1">
+        <span class="tag">01</span>
+        <svg class="ico" viewBox="0 0 48 48" fill="none" stroke="var(--cyan)" stroke-width="2">
+          <rect x="5" y="8" width="38" height="26" rx="3"/><line x1="5" y1="16" x2="43" y2="16"/>
+          <line x1="12" y1="24" x2="20" y2="24"/><line x1="12" y1="29" x2="28" y2="29"/>
+          <circle cx="34" cy="26" r="4" stroke="var(--copper-hi)"/>
+        </svg>
+        <h3>One screen, every tool</h3>
+        <p>Unified telemetry across all your AI subscriptions. Track expenditure, tokens, and credits in real time from a single dashboard.</p>
+      </div>
+      <div class="card reveal d2">
+        <span class="tag">02</span>
+        <svg class="ico" viewBox="0 0 48 48" fill="none" stroke="var(--cyan)" stroke-width="2">
+          <path d="M14 30 L24 12 L34 30"/><circle cx="24" cy="12" r="3" fill="var(--copper-hi)" stroke="none"/>
+          <path d="M10 36 h28" stroke="var(--copper-hi)"/><path d="M30 22 l6 -3 l-1 6" stroke="var(--copper-hi)"/>
+        </svg>
+        <h3>Smarter alternatives</h3>
+        <p>Stator surfaces cheaper or better-fit tools for the same job, so you stop overpaying for capability you don't need.</p>
+      </div>
+      <div class="card reveal d3">
+        <span class="tag">03</span>
+        <svg class="ico" viewBox="0 0 48 48" fill="none" stroke="var(--cyan)" stroke-width="2">
+          <circle cx="24" cy="24" r="15"/><path d="M14 14 L34 34" stroke="var(--copper-hi)"/>
+          <path d="M24 16 v8 l5 3" />
+        </svg>
+        <h3>Kill idle drain</h3>
+        <p>Detect dormant subscriptions and unused seats automatically — then cancel the waste with one click before it bills again.</p>
+      </div>
+      <div class="card reveal d4">
+        <span class="tag">04</span>
+        <svg class="ico" viewBox="0 0 48 48" fill="none" stroke="var(--cyan)" stroke-width="2">
+          <path d="M24 6 a18 18 0 1 1 -0.1 0" /><path d="M24 24 L24 6" stroke="var(--copper-hi)"/>
+          <path d="M24 24 L40 30" stroke="var(--copper-hi)"/>
+        </svg>
+        <h3>Cost by project</h3>
+        <p>Attribute every token and dollar to the project, client, or campaign that spent it — with breakdowns built for billing and margins.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="section-pad" id="dashboard">
+  <div class="wrap">
+    <div class="head-block reveal">
+      <span class="kicker copper">The Control Room</span>
+      <h2>Your entire AI spend,<br>on one live screen.</h2>
+      <p class="lead">A real-time field of truth — normalized across every tool, every token, every project.</p>
+    </div>
+
+    <div class="dash reveal d1">
+      <div class="dash-top">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <span class="turl">app.stator.io / overview</span>
+        <span class="live"><span class="blip"></span>LIVE</span>
+      </div>
+      <div class="dash-body">
+        <!-- left panel -->
+        <div class="panel">
+          <div class="plabel">Spend this month</div>
+          <div class="kpis">
+            <div class="kpi"><div class="v" data-count="18420" data-prefix="$">$0</div><div class="l">total spend</div></div>
+            <div class="kpi"><div class="v cy" data-count="4380" data-prefix="$">$0</div><div class="l">saved by Stator</div></div>
+            <div class="kpi"><div class="v co" data-count="9" data-suffix=" tools">0</div><div class="l">connected</div></div>
+          </div>
+          <div class="plabel">Daily token & credit burn</div>
+          <div class="bars" id="bars">
+            <div class="bar" data-h="62"></div><div class="bar co" data-h="40"></div>
+            <div class="bar" data-h="78"></div><div class="bar" data-h="55"></div>
+            <div class="bar co" data-h="34"></div><div class="bar" data-h="88"></div>
+            <div class="bar" data-h="70"></div><div class="bar co" data-h="46"></div>
+            <div class="bar" data-h="95"></div><div class="bar" data-h="60"></div>
+          </div>
+          <div class="bar-labels">
+            <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span><span>M</span><span>T</span><span>W</span>
+          </div>
+        </div>
+        <!-- right panel -->
+        <div class="panel">
+          <div class="plabel">Spend by project</div>
+          <div class="donut-wrap">
+            <svg class="donut" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface-2)" stroke-width="4"/>
+              <circle class="seg" cx="18" cy="18" r="15.9" fill="none" stroke="var(--cyan)" stroke-width="4" stroke-dasharray="0 100" data-dash="44"/>
+              <circle class="seg" cx="18" cy="18" r="15.9" fill="none" stroke="var(--copper-hi)" stroke-width="4" stroke-dasharray="0 100" data-dash="30" data-offset="-44"/>
+              <circle class="seg" cx="18" cy="18" r="15.9" fill="none" stroke="var(--blue)" stroke-width="4" stroke-dasharray="0 100" data-dash="26" data-offset="-74"/>
+            </svg>
+            <div class="legend">
+              <div class="row"><span class="sw" style="background:var(--cyan)"></span>Campaign A — Reels <span class="amt">$8,100</span></div>
+              <div class="row"><span class="sw" style="background:var(--copper-hi)"></span>Client · Northwind <span class="amt">$5,540</span></div>
+              <div class="row"><span class="sw" style="background:var(--blue)"></span>R&D · Concept art <span class="amt">$4,780</span></div>
+            </div>
+          </div>
+          <div class="alert">
+            <span class="b">!</span>
+            <span class="t"><b>2 idle subscriptions</b> — Voice-AI Pro & Upscaler unused for 31 days. Cancel to recover <b>$240/mo</b>.</span>
+          </div>
+          <div class="suggest">
+            <b>↻ Alternative found:</b> Switch 3 routine upscales to a lower-cost model — same output, <b>~38% cheaper</b>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS (3-phase) -->
+<section class="section-pad" id="how">
+  <div class="wrap">
+    <div class="head-block reveal">
+      <span class="kicker">How it works</span>
+      <h2>Three phases. One steady current.</h2>
+      <p class="lead">Like the three phases that energize a stator's windings, Stator works in a simple, continuous cycle.</p>
+    </div>
+    <div class="phases">
+      <div class="phase reveal d1">
+        <div class="num">PHASE 01</div><div class="wire"></div>
+        <h3>Connect</h3>
+        <p>Link every AI tool, subscription, and billing source. Stator starts ingesting spend, tokens, and credits in minutes.</p>
+      </div>
+      <div class="phase reveal d2">
+        <div class="num">PHASE 02</div><div class="wire"></div>
+        <h3>Channel</h3>
+        <p>Usage is normalized into one field of truth — every cost mapped to tools, teams, and projects automatically.</p>
+      </div>
+      <div class="phase reveal d3">
+        <div class="num">PHASE 03</div>
+        <h3>Convert</h3>
+        <p>Intelligent analytics return savings: idle cancellations, cheaper alternatives, and project-level cost breakdowns.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="section-pad">
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat"><div class="n"><span class="accent" data-count="41" data-suffix="%">0%</span></div><div class="c">representative AI-spend reduction</div></div>
+      <div class="stat"><div class="n"><span class="accent" data-count="1">0</span></div><div class="c">unified dashboard</div></div>
+      <div class="stat"><div class="n"><span class="accent" data-count="100" data-suffix="%">0%</span></div><div class="c">of tokens attributed</div></div>
+      <div class="stat"><div class="n"><span class="accent">min</span></div><div class="c">to connect your stack</div></div>
+    </div>
+    <p style="text-align:center;margin-top:18px;font-family:var(--mono);font-size:11px;color:var(--ink-faint)">Figures shown are representative product targets, not guaranteed outcomes.</p>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section-pad" id="cta">
+  <div class="wrap">
+    <div class="cta-band reveal">
+      <div class="inner">
+        <span class="kicker" style="justify-content:center">Get started</span>
+        <h2 style="margin-top:18px">Put a stator around<br>your AI stack.</h2>
+        <p class="lead" style="text-align:center">See every cost, kill every waste, and bill every project with confidence. Book a walkthrough and we'll map your stack live.</p>
+        <a class="btn btn-primary" href="#top">Request a demo <span class="arrow">→</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="brand" href="#top"><svg class="mark"><use href="#statormark"/></svg> Stator</a>
+        <p style="color:var(--ink-faint);font-size:14px;margin-top:14px;max-width:30ch">The AI FinOps control layer for creative teams.</p>
+      </div>
+      <div class="cols">
+        <div><h4>Platform</h4>
+          <a href="#features">Cost tracking</a><a href="#features">Alternatives</a><a href="#features">Idle detection</a><a href="#dashboard">Dashboard</a>
+        </div>
+        <div><h4>Company</h4>
+          <a href="#meaning">Why Stator</a><a href="#how">How it works</a><a href="#cta">Contact</a>
+        </div>
+        <div><h4>Resources</h4>
+          <a href="#">Docs</a><a href="#">Integrations</a><a href="#">Security</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Stator — AI FinOps Platform</span>
+      <span>The still frame that directs the storm.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // build 12 stator coils in 3-phase color groups
+  (function(){
+    const g=document.getElementById('coils');
+    const phases=['ph-a','ph-b','ph-c'];
+    const colors=['var(--copper)','var(--copper-hi)','var(--cyan)'];
+    for(let i=0;i<12;i++){
+      const ang=i*30;
+      const ph=phases[i%3];
+      const col=colors[i%3];
+      const ns='http://www.w3.org/2000/svg';
+      const grp=document.createElementNS(ns,'g');
+      grp.setAttribute('transform',`rotate(${ang} 200 200)`);
+      // coil = two stacked rounded arcs at radius ~132
+      const c=document.createElementNS(ns,'g');
+      c.setAttribute('class','coil '+ph);
+      c.setAttribute('stroke',col);
+      c.setAttribute('fill','none');
+      c.setAttribute('stroke-width','3.5');
+      c.setAttribute('stroke-linecap','round');
+      c.innerHTML=`
+        <path d="M186 60 q14 -10 28 0" />
+        <path d="M184 70 q16 -12 32 0" />
+        <path d="M182 80 q18 -13 36 0" />
+        <line x1="200" y1="90" x2="200" y2="118" stroke-width="2" opacity=".7"/>`;
+      grp.appendChild(c);
+      g.appendChild(grp);
+    }
+  })();
+
+  // scroll reveals
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+  },{threshold:.18});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // count-up
+  function countUp(el){
+    const target=+el.dataset.count, pre=el.dataset.prefix||'', suf=el.dataset.suffix||'';
+    const dur=1400, t0=performance.now();
+    function step(t){
+      const p=Math.min((t-t0)/dur,1);
+      const e=1-Math.pow(1-p,3);
+      const val=Math.round(target*e);
+      el.textContent=pre+val.toLocaleString()+suf;
+      if(p<1)requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // dashboard activation
+  const dashIO=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      if(!e.isIntersecting)return;
+      e.target.querySelectorAll('[data-count]').forEach(countUp);
+      e.target.querySelectorAll('.bar').forEach(b=>{ b.style.height=b.dataset.h+'%'; });
+      e.target.querySelectorAll('.seg').forEach(s=>{
+        const d=s.dataset.dash, off=s.dataset.offset;
+        setTimeout(()=>{ s.style.transition='stroke-dasharray 1.1s cubic-bezier(.2,.7,.2,1)';
+          s.setAttribute('stroke-dasharray',`${d} ${100-d}`);
+          if(off)s.setAttribute('stroke-dashoffset',off);
+        },150);
+      });
+      dashIO.unobserve(e.target);
+    });
+  },{threshold:.3});
+  document.querySelectorAll('.dash, .stats').forEach(el=>dashIO.observe(el));
+</script>
+</body>
+</html>
